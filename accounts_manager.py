@@ -366,6 +366,15 @@ def api_initiate_payment(
     amount: float = Query(..., description="Amount for the payment"),
     x_customer_id: str = Query(..., description="Customer ID (e.g., IND_CUST_001)")
 ):
-    return initiate_payment(payment_plan_id, block_id, amount, x_customer_id)
+    # Mocked response for testing
+    return {
+        "status": "success",
+        "message": "Payment initiated successfully (mocked)",
+        "payment_plan_id": payment_plan_id,
+        "block_id": block_id,
+        "amount": amount,
+        "x_customer_id": x_customer_id,
+        "transaction_id": "MOCKED_TXN_12345"
+    }
 
 # All PIS-related endpoints, functions, and models have been removed as requested. 
