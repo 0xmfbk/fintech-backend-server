@@ -300,39 +300,46 @@ def get_accounts_by_path(customer_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get accounts: {str(e)}")
 
 
-# Test functionality when run as script
-if __name__ == "__main__":
-    # Sample customer IDs for testing
-    sample_customer_ids = [
-        "IND_CUST_001",
-        "IND_CUST_017",
-        "IND_CUST_009",
-        "IND_CUST_015",
-        "CORP_CUST_001",
-        "CORP_CUST_008",
-        "BUS_CUST_001",
-        "BUS_CUST_005"
-    ]
-    
-    print("Testing Accounts Manager...")
-    for cid in sample_customer_ids:
-        print(f"\nProcessing customer_id={cid}")
-        try:
-            result = accounts_processor.process_customer_accounts(cid)
-            print("Customer Summary:")
-            print(f"  customerId: {result['customerId']}")
-            print(f"  accounts_count: {result['accounts_count']}")
-            print(f"  total_balance: {result['total_balance']}")
-            print(f"  total_credit: {result['total_credit']}")
-            print(f"  total_debit: {result['total_debit']}")
-            print("  accounts:")
-            for acc in result['accounts']:
-                print(f"    - bank_name: {acc['bank_name']}")
-                print(f"      account_status: {acc['account_status']}")
-                print(f"      balance_amount: {acc['balance_amount']}")
-                print(f"      balance_position: {acc['balance_position']}")
-                print(f"      account_currency: {acc['account_currency']}")
-                print(f"      account_address: {acc['account_address']}")
-                print(f"      account_id: {acc['account_id']}")
-        except Exception as e:
-            print(f"Error processing accounts for {cid}: {e}") 
+@app.get("/customer-exists/{customer_id}")
+def customer_exists(customer_id: str):
+    """Check if a customer exists in Supabase Accounts table by customer_id."""
+    supabase_url = "https://eruinevvxatdagfqlzwn.supabase.co/rest/v1/Accounts"
+    supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVydWluZXZ2eGF0ZGFnZnFsenduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3ODUwMjIsImV4cCI6MjA2ODM2MTAyMn0.FTw_VbIEGVIAW3Huhz8ghtJzPV3tNcvWXPuNVxCu-eE"
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json"
+    }
+    params = {"customer_id": f"eq.{customer_id}", "select": "customer_id", "limit": 1}
+    try:
+        response = requests.get(supabase_url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+        exists = len(data) > 0
+        return {"exists": exists, "customer_id": customer_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to check customer: {str(e)}") 
+
+
+@app.get("/accounts/{account_id}/transactions")
+def get_transactions_for_account(account_id: str):
+    """
+    Get all transactions for a given account from Supabase.
+    """
+    supabase_manager = SupabaseManager()
+    try:
+        url = f"{supabase_manager.supabase_url}/rest/v1/Transactions"
+        headers = {
+            "apikey": supabase_manager.supabase_key,
+            "Authorization": f"Bearer {supabase_manager.supabase_key}",
+            "Content-Type": "application/json"
+        }
+        params = {
+            "account_id": f"eq.{account_id}"
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        transactions = response.json()
+        return {"account_id": account_id, "transactions": transactions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch transactions: {str(e)}") 
