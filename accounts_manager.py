@@ -1,5 +1,5 @@
 import requests
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, status
 from dotenv import load_dotenv
 import os
 from typing import List, Dict, Any
@@ -335,9 +335,53 @@ class FundsConfirmationRequest(BaseModel):
     authorization: str
     x_idempotency_key: str
 
-@app.post("/accounts/{account_id}/confirm-funds")
+@app.post(
+    "/accounts/{account_id}/confirm-funds",
+    response_description="Funds confirmation result",
+    status_code=200,
+    responses={
+        200: {
+            "description": "Funds confirmation result",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "fundsAvailable": True,
+                        "message": "Funds are available for the requested amount."
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Invalid request or insufficient funds."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Failed to confirm funds: <error message>"
+                    }
+                }
+            }
+        }
+    }
+)
 def confirm_funds(account_id: str, req: FundsConfirmationRequest):
-    """Confirm if the amount is available in the account before payment"""
+    """
+    Confirm if the amount is available in the account before payment.
+    - **account_id**: Account ID to check funds for (path)
+    - **amount**: Amount to check (body)
+    - **currency**: Currency code (body)
+    - **headers**: All required headers for the external API (body)
+    Returns funds confirmation result from the external API.
+    """
     headers = {
         "x-customer-user-agent": req.x_customer_user_agent,
         "x-customer-ip-address": req.x_customer_ip_address,
@@ -360,9 +404,12 @@ def confirm_funds(account_id: str, req: FundsConfirmationRequest):
         result = fetcher.confirm_funds()
         return result
     except requests.HTTPError as e:
-        return {"error": str(e), "details": e.response.text if e.response else None}
+        # 400 for client errors, 500 for others
+        status_code = e.response.status_code if e.response and 400 <= e.response.status_code < 500 else status.HTTP_500_INTERNAL_SERVER_ERROR
+        detail = e.response.text if e.response else str(e)
+        raise HTTPException(status_code=status_code, detail=detail)
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Failed to confirm funds: {str(e)}")
 
 
 # Test functionality when run as script
