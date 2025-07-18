@@ -1,9 +1,10 @@
 import requests
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, status, Body, Path
 from dotenv import load_dotenv
 import os
-from typing import List, Dict, Any
-from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
+from paymentPlan import paymentplan, get_payment_plan_blocks, initiate_payment
 
 # Load environment variables
 load_dotenv()
@@ -343,3 +344,28 @@ def get_transactions_for_account(account_id: str):
         return {"account_id": account_id, "transactions": transactions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch transactions: {str(e)}") 
+
+@app.post("/payment-plan")
+def api_payment_plan(
+    amount: float = Query(..., description="Amount for the payment plan"),
+    x_customer_id: str = Query(..., description="Customer ID (e.g., IND_CUST_001)")
+):
+    return paymentplan(amount, x_customer_id)
+
+@app.post("/payment-plan/blocks")
+def api_get_payment_plan_blocks_post(
+    payment_plan_id: str = Body(..., description="Payment Plan ID"),
+    x_customer_id: str = Body(..., description="Customer ID (e.g., IND_CUST_001)")
+):
+    return get_payment_plan_blocks(payment_plan_id, x_customer_id)
+
+@app.post("/payment-initiate")
+def api_initiate_payment(
+    payment_plan_id: str = Query(..., description="Payment Plan ID"),
+    block_id: str = Query(..., description="Block ID"),
+    amount: float = Query(..., description="Amount for the payment"),
+    x_customer_id: str = Query(..., description="Customer ID (e.g., IND_CUST_001)")
+):
+    return initiate_payment(payment_plan_id, block_id, amount, x_customer_id)
+
+# All PIS-related endpoints, functions, and models have been removed as requested. 
