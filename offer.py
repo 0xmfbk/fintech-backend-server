@@ -18,5 +18,3 @@ def get_offers():
     response_text = response.text
     response_json = json.loads(response_text)
     return response_json
-
-print(get_offers())
