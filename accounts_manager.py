@@ -213,27 +213,6 @@ class AccountsProcessor:
         }
 
 
-class FundsConfirmationFetcher:
-    """Class to confirm funds availability before payment"""
-    def __init__(self, account_id: str, amount: float, currency: str, headers: dict):
-        self.account_id = account_id
-        self.amount = amount
-        self.currency = currency
-        self.headers = headers
-        self.url = f"https://jpcjofsdev.apigw-az-eu.webmethods.io/gateway/Confirmation%20of%20Availability%20of%20Funds/v0.4.3/accounts/{account_id}/CAF"
-
-    def confirm_funds(self) -> dict:
-        payload = {
-            "instructionAmount": {
-                "amount": self.amount,
-                "currency": self.currency
-            }
-        }
-        response = requests.post(self.url, json=payload, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
-
-
 # FastAPI Application
 app = FastAPI(title="Accounts Management API", description="API for fetching and managing customer accounts")
 
@@ -319,97 +298,6 @@ def get_accounts_by_path(customer_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get accounts: {str(e)}")
-
-
-class FundsConfirmationRequest(BaseModel):
-    amount: float
-    currency: str
-    # All headers required by the external API
-    x_customer_user_agent: str
-    x_customer_ip_address: str
-    x_auth_date: str
-    x_customer_id: str
-    x_jws_signature: str
-    x_financial_id: str
-    x_interactions_id: str
-    authorization: str
-    x_idempotency_key: str
-
-@app.post(
-    "/accounts/{account_id}/confirm-funds",
-    response_description="Funds confirmation result",
-    status_code=200,
-    responses={
-        200: {
-            "description": "Funds confirmation result",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "fundsAvailable": True,
-                        "message": "Funds are available for the requested amount."
-                    }
-                }
-            }
-        },
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Invalid request or insufficient funds."
-                    }
-                }
-            }
-        },
-        500: {
-            "description": "Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Failed to confirm funds: <error message>"
-                    }
-                }
-            }
-        }
-    }
-)
-def confirm_funds(account_id: str, req: FundsConfirmationRequest):
-    """
-    Confirm if the amount is available in the account before payment.
-    - **account_id**: Account ID to check funds for (path)
-    - **amount**: Amount to check (body)
-    - **currency**: Currency code (body)
-    - **headers**: All required headers for the external API (body)
-    Returns funds confirmation result from the external API.
-    """
-    headers = {
-        "x-customer-user-agent": req.x_customer_user_agent,
-        "x-customer-ip-address": req.x_customer_ip_address,
-        "x-auth-date": req.x_auth_date,
-        "x-customer-id": req.x_customer_id,
-        "x-jws-signature": req.x_jws_signature,
-        "x-financial-id": req.x_financial_id,
-        "x-interactions-id": req.x_interactions_id,
-        "Authorization": req.authorization,
-        "x-idempotency-key": req.x_idempotency_key,
-        "content-type": "application/json"
-    }
-    try:
-        fetcher = FundsConfirmationFetcher(
-            account_id=account_id,
-            amount=req.amount,
-            currency=req.currency,
-            headers=headers
-        )
-        result = fetcher.confirm_funds()
-        return result
-    except requests.HTTPError as e:
-        # 400 for client errors, 500 for others
-        status_code = e.response.status_code if e.response and 400 <= e.response.status_code < 500 else status.HTTP_500_INTERNAL_SERVER_ERROR
-        detail = e.response.text if e.response else str(e)
-        raise HTTPException(status_code=status_code, detail=detail)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to confirm funds: {str(e)}")
 
 
 # Test functionality when run as script
