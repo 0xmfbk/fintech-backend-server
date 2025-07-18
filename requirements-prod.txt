@@ -1,7 +1,7 @@
 # Production Requirements - Minimal set for deployment
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-requests==2.31.0
+requests==2.32.4
 supabase==2.3.4
 python-dotenv==1.0.0
 pydantic==2.5.0 
