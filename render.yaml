@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: fintech-backend-server
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      # External API uses header-based authentication, no API key needed 

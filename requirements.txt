@@ -1,0 +1,31 @@
+# FastAPI Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# HTTP Client
+requests==2.31.0
+
+# Database
+supabase==2.3.4
+postgrest==0.13.2
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Data Processing
+pydantic==2.5.0
+
+# Date/Time Handling
+python-dateutil==2.8.2
+
+# JSON Processing
+orjson==3.9.10
+
+# CORS Support
+python-multipart==0.0.6
+
+# Logging
+structlog==23.2.0
+
+# HTTP Status Codes
+http-status==0.1.0 
