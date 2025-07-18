@@ -25,7 +25,4 @@ orjson==3.9.10
 python-multipart==0.0.6
 
 # Logging
-structlog==23.2.0
-
-# HTTP Status Codes
-http-status==0.1.0 
+structlog==23.2.0 
