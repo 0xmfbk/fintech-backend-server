@@ -1,12 +1,62 @@
 import requests
 from fastapi import FastAPI, HTTPException, Query
-from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
 from typing import List, Dict, Any
 
 # Load environment variables
 load_dotenv()
+
+class SupabaseClient:
+    """Simple Supabase client using requests"""
+    def __init__(self, url, key):
+        self.url = url
+        self.headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
+    
+    def table(self, table_name):
+        return SupabaseTable(self.url, table_name, self.headers)
+
+class SupabaseTable:
+    def __init__(self, base_url, table_name, headers):
+        self.base_url = base_url
+        self.table_name = table_name
+        self.headers = headers
+        self.table_url = f"{base_url}/rest/v1/{table_name}"
+    
+    def upsert(self, data, on_conflict=None):
+        return SupabaseQuery(self.table_url, self.headers, data, on_conflict)
+
+class SupabaseQuery:
+    def __init__(self, url, headers, data, on_conflict):
+        self.url = url
+        self.headers = headers
+        self.data = data
+        self.on_conflict = on_conflict
+    
+    def execute(self):
+        try:
+            if self.on_conflict:
+                self.headers["Prefer"] = f"resolution=merge-duplicates"
+            
+            response = requests.post(
+                self.url,
+                headers=self.headers,
+                json=self.data
+            )
+            response.raise_for_status()
+            
+            return SupabaseResult(data=self.data)
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Supabase request failed: {str(e)}")
+
+class SupabaseResult:
+    def __init__(self, data=None):
+        self.data = data or []
 
 class AccountsFetcher:
     """Class to fetch account data from external API"""
@@ -43,11 +93,11 @@ class SupabaseManager:
         self.supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVydWluZXZ2eGF0ZGFnZnFsenduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3ODUwMjIsImV4cCI6MjA2ODM2MTAyMn0.FTw_VbIEGVIAW3Huhz8ghtJzPV3tNcvWXPuNVxCu-eE"
         self.client = self._get_supabase_client()
     
-    def _get_supabase_client(self) -> Client:
+    def _get_supabase_client(self):
         """Get Supabase client instance"""
         if not self.supabase_url or not self.supabase_key:
             raise ValueError("Supabase credentials are not set.")
-        return create_client(self.supabase_url, self.supabase_key)
+        return SupabaseClient(self.supabase_url, self.supabase_key)
     
     def upsert_accounts(self, accounts: List[Dict]) -> List[Dict]:
         """Upsert accounts into Supabase"""
@@ -177,6 +227,76 @@ def fetch_accounts(customer_id: str = Query(..., description="Customer ID to fet
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/accounts")
+def get_accounts(customer_id: str = Query(..., description="Customer ID to get accounts for")):
+    """Get customer accounts directly from external API without storing"""
+    try:
+        # Fetch data from external API
+        fetcher = AccountsFetcher(
+            url="https://jpcjofsdev.apigw-az-eu.webmethods.io/gateway/Accounts/v0.4.3/accounts",
+            customerId=customer_id
+        )
+        
+        raw_data = fetcher.get_full_account()
+        
+        # Extract and process account data
+        processed_data = accounts_processor.extract_account_data(raw_data)
+        
+        if not processed_data["accounts"]:
+            raise HTTPException(status_code=404, detail="No accounts found for this customer.")
+        
+        # Return summary without storing in database
+        return {
+            "customerId": processed_data["customer_id"],
+            "accounts_count": len(processed_data["accounts"]),
+            "accounts": processed_data["accounts"],
+            "total_balance": processed_data["total_balance"],
+            "total_credit": processed_data["total_credit"],
+            "total_debit": processed_data["total_debit"],
+            "source": "external_api",
+            "stored_in_database": False
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get accounts: {str(e)}")
+
+
+@app.get("/accounts/{customer_id}")
+def get_accounts_by_path(customer_id: str):
+    """Get customer accounts using path parameter"""
+    try:
+        # Fetch data from external API
+        fetcher = AccountsFetcher(
+            url="https://jpcjofsdev.apigw-az-eu.webmethods.io/gateway/Accounts/v0.4.3/accounts",
+            customerId=customer_id
+        )
+        
+        raw_data = fetcher.get_full_account()
+        
+        # Extract and process account data
+        processed_data = accounts_processor.extract_account_data(raw_data)
+        
+        if not processed_data["accounts"]:
+            raise HTTPException(status_code=404, detail="No accounts found for this customer.")
+        
+        # Return summary without storing in database
+        return {
+            "customerId": processed_data["customer_id"],
+            "accounts_count": len(processed_data["accounts"]),
+            "accounts": processed_data["accounts"],
+            "total_balance": processed_data["total_balance"],
+            "total_credit": processed_data["total_credit"],
+            "total_debit": processed_data["total_debit"],
+            "source": "external_api",
+            "stored_in_database": False
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get accounts: {str(e)}")
 
 
 # Test functionality when run as script
