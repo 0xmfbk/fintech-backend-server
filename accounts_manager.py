@@ -5,6 +5,7 @@ import os
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from paymentPlan import paymentplan, get_payment_plan_blocks, initiate_payment
+from offer import get_offers
 
 # Load environment variables
 load_dotenv()
@@ -377,4 +378,6 @@ def api_initiate_payment(
         "transaction_id": "MOCKED_TXN_12345"
     }
 
-# All PIS-related endpoints, functions, and models have been removed as requested. 
+@app.get("/offers")
+def api_get_offers():
+    return get_offers()
